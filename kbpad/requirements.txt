@@ -1,0 +1,6 @@
+# kbpad runtime dependencies. On CachyOS/Arch install them with pacman (install.fish does this):
+#   sudo pacman -S --needed python-evdev pyside6
+# Python 3.12+ (tomllib from the standard library).
+
+evdev>=1.7      # pacman: python-evdev — read keyboards, grab them, create virtual pads (uinput)
+PySide6>=6.6    # pacman: pyside6      — the GUI and tray icon

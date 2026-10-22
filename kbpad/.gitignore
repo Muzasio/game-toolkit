@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+dist/
+build/
+pkg/
+*.pkg.tar.*
+.pytest_cache/
+kbpad-diagnostics-*.zip
+kbpad-probe-report.txt

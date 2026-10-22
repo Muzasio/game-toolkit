@@ -1,0 +1,28 @@
+schema_version = 1
+id = "ps2-dualshock2"
+name = "PS2 DualShock 2 preset"
+builtin = true
+label_set = "ps2"
+
+[buttons]
+BTN_SOUTH  = "KEY_K"         # Cross / A
+BTN_EAST   = "KEY_L"         # Circle / B
+BTN_WEST   = "KEY_J"         # Square / X
+BTN_NORTH  = "KEY_I"         # Triangle / Y
+BTN_TL     = "KEY_Q"         # L1
+BTN_TR     = "KEY_E"         # R1
+BTN_START  = "KEY_ENTER"
+BTN_SELECT = "KEY_BACKSPACE"
+
+[triggers]
+ABS_Z  = "KEY_LEFTSHIFT"     # L2
+ABS_RZ = "KEY_SPACE"         # R2
+
+# Pair order: [negative, positive]. Verify against kb2xbox (U5).
+[dpad]
+ABS_HAT0X = ["KEY_LEFT", "KEY_RIGHT"]
+ABS_HAT0Y = ["KEY_UP", "KEY_DOWN"]
+
+[left_stick]
+ABS_X = ["KEY_A", "KEY_D"]
+ABS_Y = ["KEY_W", "KEY_S"]

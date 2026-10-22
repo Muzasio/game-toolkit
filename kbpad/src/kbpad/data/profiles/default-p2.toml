@@ -1,0 +1,30 @@
+schema_version = 1
+id = "default-p2"
+name = "Default (P2)"
+builtin = true
+label_set = "ps2"
+
+[buttons]
+BTN_SOUTH  = "KEY_8"          # Cross
+BTN_EAST   = "KEY_9"          # Circle
+BTN_WEST   = "KEY_0"          # Square
+BTN_NORTH  = "KEY_7"          # Triangle
+BTN_TL     = "KEY_U"          # L1
+BTN_TR     = "KEY_O"          # R1
+BTN_START  = "KEY_RIGHTSHIFT"
+BTN_SELECT = "KEY_RIGHTCTRL"
+
+[triggers]
+ABS_Z  = "KEY_6"              # L2
+ABS_RZ = "KEY_MINUS"          # R2
+
+# TODO verify: the plan lists the P2 D-pad as "T H / G F", which does not say
+# which key is which direction. Assumed T=up G=down F=left H=right. Check
+# against Part 6 of MKSM_Dual_Keyboard_Setup.md / p2_bloody.cfg.
+[dpad]
+ABS_HAT0X = ["KEY_F", "KEY_H"]
+ABS_HAT0Y = ["KEY_T", "KEY_G"]
+
+[left_stick]
+ABS_X = ["KEY_J", "KEY_L"]
+ABS_Y = ["KEY_I", "KEY_K"]
