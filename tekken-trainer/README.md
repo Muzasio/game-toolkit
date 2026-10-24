@@ -8,7 +8,9 @@ It checks every press frame by frame (60 per second), like the game, and tells y
 - **Punish trainer:** a random blocked move from any of 41 characters. Punish it with the right Dragunov move, or keep blocking if it's safe.
 - **Moves:** all 141 Dragunov moves with frame data, a short game plan, and a **Drill** button on each move.
 - **Feedback:** "wrong button", "held DF, wanted N", "1+2 were 2 frames apart", "just frame too early: 12f", a Tekken-style input display, success rate, streaks and weak spots.
-- **My timing:** save a run that worked in the real game, then see how many frames early or late each step is, with an optional rhythm beep.
+- **Pro timing:** 9 combos copied from Nydem's Season 3 guide video, with the **exact keys and frame gaps** he pressed (read from Tekken 8's input history in the video). Timing mode grades every gap: perfect / early / late, and labels it movement, string or juggle.
+- **Beginner help:** every step shows your real keys (e.g. `FC.df+1` → `S+D + U`), a "How to press it" list in plain words, and a glossary (FC, ws, SNK, T!, cc…).
+- **My timing:** save a run that worked in the real game as your own target, with an optional rhythm beep.
 
 ## Run
 
@@ -42,6 +44,20 @@ For exact rhythm, use **Save last run as my timing** after a run that worked in 
 
 - No hitboxes, range, walls or pushback. It trains your hands. Confirm combos and punishers in the game's practice mode.
 - Data is from TekkenDocs (game version shown on their site) and can be out of date after a patch.
+
+## Pro timing from a video
+
+Works with any 1080p 60 fps video that shows Tekken 8's practice-mode input history (left side, frame counts on).
+
+```fish
+yt-dlp -f "bv*[fps>=50][height<=1080]+ba" --merge-output-format mp4 -o video.mp4 -- URL
+python3 -I scripts/read_input_history.py video.mp4 rows.json           # every input row + frames held
+node scripts/make_pro_combos.js rows.json - nydem "Nydem" URL js/data/pro-nydem.js names.json
+```
+
+- The reader counts video frames per input row (1 video frame = 1 game frame at 60 fps), so the numbers are exact.
+- Slow-motion parts are skipped when you pass a dupes file (repeated frames); unreadable rows are skipped.
+- Checked by eye against the on-screen history, and the Hail Slicer gaps it found (17–18 frames) match the frame data (frames 16–19).
 
 ## Update the data
 

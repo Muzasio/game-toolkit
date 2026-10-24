@@ -184,3 +184,33 @@ label.row input[type="number"] { width: 5rem; }
 .tok .chip:not(:last-child) { border-top-right-radius: 0; border-bottom-right-radius: 0; }
 
 label.row.check { justify-content: flex-start; }
+
+/* beginner help */
+.chip { display: inline-flex; flex-direction: column; align-items: center; }
+.chip .keys { font-size: 0.65rem; color: var(--muted); font-family: system-ui, sans-serif; white-space: nowrap; }
+.howto-box { margin: 0.4rem 0; }
+.howto-box summary { cursor: pointer; color: var(--muted); font-size: 0.9rem; }
+.howto { margin: 0.4rem 0; padding-left: 1.4rem; font-size: 0.92rem; }
+.howto li { margin: 0.2rem 0; }
+kbd {
+  font-family: var(--mono); font-size: 0.8rem; padding: 0.05rem 0.4rem; border-radius: 4px;
+  border: 1px solid var(--line); background: var(--panel-2); white-space: nowrap;
+}
+.gloss { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 0.8rem; font-size: 0.88rem; margin: 0.5rem 0; }
+.gloss dt { font-family: var(--mono); font-weight: 600; }
+.gloss dd { margin: 0; color: var(--muted); }
+.lv-pro { color: var(--now); border-color: var(--now); }
+.muted { color: var(--muted); }
+input.tol { width: 3.2rem; padding: 0.1rem 0.3rem; }
+
+/* timing lane: target on top, you below */
+.lane { position: relative; height: 64px; margin: 0.4rem 0 0.8rem; background: var(--panel-2); border-radius: 8px; overflow: hidden; }
+.lane-label { position: absolute; left: 6px; top: 4px; font-size: 0.7rem; color: var(--muted); }
+.lane-label.you { top: auto; bottom: 4px; }
+.tick { position: absolute; width: 3px; margin-left: -1px; border-radius: 2px; }
+.tick.t { top: 8px; height: 22px; background: var(--muted); }
+.tick.y { bottom: 8px; height: 22px; background: var(--now); }
+.tick.y.good { background: var(--good); }
+.tick.y.bad { background: var(--bad); }
+.tick-label { position: absolute; top: 30px; font-size: 0.6rem; color: var(--muted); transform: translateX(-50%); white-space: nowrap; }
+.playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--accent); }

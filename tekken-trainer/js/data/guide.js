@@ -1,6 +1,36 @@
 // Dragunov game plan, short and in our own words.
 // Based on the TekkenDocs guide by Fear Of Silence (game version 2.04.00, Aug 2025)
 // and the Wavu Wiki Dragunov page. Check those pages for updates after patches.
+// Words used in combo notation, explained for beginners.
+window.T8_GLOSSARY = [
+  ["f, b, u, d", "Forward, back, up, down. Forward is towards the opponent. df = down-forward (both keys), db = down-back, uf, ub."],
+  ["F, B, D (capital)", "Hold that direction instead of tapping it."],
+  ["1, 2, 3, 4", "Left punch, right punch, left kick, right kick. 1+2 = both on the same frame."],
+  ["n", "Neutral: no direction held."],
+  ["space between moves", "Next move in the combo (wait until the last one hits)."],
+  [", (comma)", "Next hit of the same string, e.g. 4,1 = press 4 then 1."],
+  ["~ (tilde)", "Right after, with no delay. 2,1~df = press df immediately after the 1."],
+  [": (colon)", "Just frame: the input must land on an exact frame. Don't mash it."],
+  ["FC", "Full crouch: you are crouching (holding down). FC.df+1 = while crouching, hold down-forward and press 1."],
+  ["ws", "While standing: let go of down and press the button as you stand up from a crouch."],
+  ["SNK", "Sneak: Dragunov's crouch-walk stance. Enter it with qcf, or with df after some moves. SNK.2 = press 2 in Sneak."],
+  ["qcf", "Quarter circle forward: down › down-forward › forward, one smooth roll."],
+  ["PGR / PGN", "Pigeon Roll: 3+4 (or d+3+4). PGN 2 = press 2 during the roll."],
+  ["cc", "Crouch cancel: tap up and let go, to stand up out of Sneak or crouch."],
+  ["dash, md", "Tap forward twice quickly (md = microdash, a short one)."],
+  ["ssl, ssr, SSR", "Sidestep left (tap up) / sidestep right (tap down)."],
+  ["T!", "Tornado: the opponent spins in the air. Each combo can use it once to keep going."],
+  ["CH", "Counter hit: you hit them while they were attacking. Some combos only work on CH."],
+  ["CL", "Clean hit: the sweet spot of a move."],
+  ["W!", "Wall: the opponent is stuck on the wall."],
+  ["H., Heat, H.F", "Heat mode. H.F = tap forward to Heat dash after a Heat engager."],
+  ["i10, i15", "Startup: the move hits after 10 or 15 frames. Lower is faster."],
+  ["-12 on block", "You are 12 frames behind after it is blocked. -10 or worse can be punished."],
+  ["h, m, l", "High (duck it), mid (block standing), low (block crouching)."],
+  ["frame", "1/60 of a second. The game and this trainer count everything in frames."],
+  ["juggle / link", "Hitting the opponent while they are in the air after a launcher."],
+];
+
 window.T8_GUIDE = [
   { title: "Game plan", points: [
     "Rushdown: win many small exchanges with safe pokes and plus-on-block mids.",

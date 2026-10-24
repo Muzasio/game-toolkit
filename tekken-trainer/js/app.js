@@ -37,6 +37,7 @@
   const DEFAULTS = {
     keys: Object.assign({}, I.DEFAULT_KEYS), side: "p1", socdLR: "neutral", socdUD: "up",
     simulWindow: 1, stringWindow: 30, moveWindow: 45, punishWindow: 40, sound: true, cue: false,
+    timingMode: false, timingTol: 3,
   };
   function loadSettings() {
     const s = Object.assign({}, DEFAULTS, store.get("settings", {}));
@@ -55,6 +56,7 @@
       moveWindow: clamp(s.moveWindow, 20, 90, 45),
       punishWindow: clamp(s.punishWindow, 15, 90, 40),
       sound: !!s.sound, cue: !!s.cue,
+      timingMode: !!s.timingMode, timingTol: clamp(s.timingTol, 1, 8, 3),
     };
   }
   let settings = loadSettings();
@@ -132,10 +134,83 @@
     const s = store.get("stat." + id, null) || {};
     return { a: s.a | 0, s: s.s | 0, streak: s.streak | 0, best: s.best | 0,
              drops: s.drops && typeof s.drops === "object" ? s.drops : {},
-             ref: Array.isArray(s.ref) ? s.ref : null };
+             ref: Array.isArray(s.ref) && s.ref.every((g) => g === null || Number.isFinite(g)) ? s.ref : null,
+             err: s.err && typeof s.err === "object" ? s.err : null };
   }
   const saveStat = (id, s) => store.set("stat." + id, s);
   const pct = (s) => (s.a ? Math.round((100 * s.s) / s.a) + "%" : "—");
+
+  // ---------- beginner help: real keys and plain words ----------
+  const keyName = (k) => I.keyLabel(settings.keys[k]) || "?";
+  function dirKeys(d) {
+    const fwd = settings.side === "p1" ? "right" : "left", back = settings.side === "p1" ? "left" : "right";
+    const map = { u: "up", d: "down", f: fwd, b: back };
+    if (!d || d === "n") return "";
+    return d.replace("*", "").split("").map((c) => keyName(map[c])).join("+");
+  }
+  const btnKeys = (btns) => btns.map((b) => keyName("b" + b)).join("+");
+  const MOVE_WORDS = {
+    dash: () => `Tap ${dirKeys("f")} twice (dash forward)`,
+    md: () => `Tap ${dirKeys("f")} twice quickly (microdash)`,
+    cc: () => `Tap ${dirKeys("u")} and let go (crouch cancel: stand up out of Sneak / crouch)`,
+    ssl: () => `Tap ${dirKeys("u")} once (sidestep left)`,
+    ssr: () => `Tap ${dirKeys("d")} once (sidestep right)`,
+  };
+  const MARK_WORDS = { "T!": "tornado: the opponent spins, so the combo can go on", CH: "only works on counter hit",
+    CL: "only on a clean hit", "W!": "opponent is on the wall", "HE!": "starts Heat", "HB!": "Heat move" };
+
+  // One step -> { keys: "S+D, U", text: "plain English" }
+  function explain(s) {
+    const marks = (s.markers || []).map((m) => MARK_WORDS[m]).filter(Boolean);
+    let keys = "", text = "";
+    if (s.kind === "dirs") {
+      const word = MOVE_WORDS[s.label];
+      if (word) text = word();
+      else if (s.label.startsWith("~")) text = `Right away, press ${dirKeys(s.seq[0])}` + (s.seq[0] === "df" ? " (enters Sneak stance)" : "");
+      else if (s.label.startsWith("H.") || s.label === ",H.F") text = `Tap ${dirKeys("f")} (Heat dash)`;
+      else if (s.seq.length === 1) text = `Hold ${dirKeys(s.seq[0])}`;
+      else text = "Press " + s.seq.filter((d) => d !== "n").map(dirKeys).join(", then ") + (s.label === "b,b" ? " (backdash)" : "");
+      keys = s.seq.filter((d) => d !== "n").map(dirKeys).join(" › ");
+    } else {
+      const b = btnKeys(s.btns);
+      const parts = [];
+      if (s.label.includes("FC.")) parts.push(`While crouching`);
+      if (s.stance) parts.push("From Sneak stance");
+      if (s.motion && s.motion.join() === "d,df,f") parts.push(`Roll ${dirKeys("d")} › ${dirKeys("df")} › ${dirKeys("f")}, then`);
+      else if (s.motion) parts.push(`Do ${s.motion.map((d) => (d === "n" ? "let go" : dirKeys(d))).join(" › ")}, then`);
+      if (s.dir === "ws") parts.push(`let go of ${dirKeys("d")} and as you stand up`);
+      if (s.dir === "n") parts.push(`with NO direction held, press ${b}`);
+      else if (s.dir === "*" || s.dir === "ws") parts.push(`press ${b}`);
+      else parts.push(`hold ${dirKeys(s.dir)} and press ${b}`);
+      text = parts.join(" ").replace(/^./, (c) => c.toUpperCase());
+      if (s.btns.length > 1) text += " (all on the same frame)";
+      if (s.jf) text += ` — just frame: ${s.jf[0]}-${s.jf[1]} frames after the last press, don't mash`;
+      if (s.fast) text += ` — the whole input within ${s.fast} frames`;
+      keys = (s.dir !== "n" && s.dir !== "*" && s.dir !== "ws" ? dirKeys(s.dir) + " + " : "") + b;
+      if (s.motion) keys = s.motion.filter((d) => d !== "n").map(dirKeys).join(" › ") + " › " + b;
+    }
+    if (marks.length) text += ` (${marks.join("; ")})`;
+    return { keys, text };
+  }
+
+  // Frames from the previous button press (null for movement-only steps).
+  function pressGaps(steps, results) {
+    let last = null;
+    return steps.map((s, i) => {
+      const r = results[i];
+      if (!r || s.kind !== "press") return null;
+      const g = last === null ? 0 : r.frame - last;
+      last = r.frame;
+      return g;
+    });
+  }
+  // What kind of timing a gap is: movement, string (quick follow-up) or juggle/link.
+  function gapType(steps, i, gap) {
+    let j = i - 1;
+    while (j >= 0 && steps[j].kind !== "press") j--;
+    if (steps[i].motion || (j < i - 1)) return "movement";
+    return gap <= 14 ? "string" : "juggle/link";
+  }
 
   // ---------- practice panel (combos, drills, single moves) ----------
   class Practice {
@@ -153,19 +228,30 @@
       this.title = el("h2");
       this.meta = el("div", { class: "meta" });
       this.chips = el("div", { class: "chips", "aria-live": "polite" });
+      this.lane = el("div", { class: "lane", "aria-hidden": "true" });
+      this.howto = el("ol", { class: "howto" });
       this.status = el("p", { class: "status", "aria-live": "polite" });
       this.result = el("div", { class: "result" });
       this.statLine = el("p", { class: "statline" });
-      this.cueBox = el("input", { type: "checkbox", id: this.root.id + "-cue",
+      this.targetLine = el("p", { class: "hint" });
+      this.cueBox = el("input", { type: "checkbox",
         onchange: () => { settings.cue = this.cueBox.checked; saveSettings(); } });
+      this.timingBox = el("input", { type: "checkbox",
+        onchange: () => { settings.timingMode = this.timingBox.checked; saveSettings(); this.reset(); } });
+      this.tolInput = el("input", { type: "number", min: 1, max: 8, class: "tol",
+        onchange: () => { settings.timingTol = clamp(this.tolInput.value, 1, 8, 3); this.tolInput.value = settings.timingTol; saveSettings(); } });
       this.controls = el("div", { class: "controls" },
         el("button", { text: "Reset (Space)", onclick: () => this.reset() }),
+        el("label", { class: "check" }, this.timingBox, " Timing mode: each gap within ±", this.tolInput, " frames of the target"),
+        el("label", { class: "check" }, this.cueBox, " Beep the target rhythm"),
         el("button", { text: "Save last run as my timing", onclick: () => this.saveRef() }),
-        el("button", { text: "Clear my timing", onclick: () => this.clearRef() }),
-        el("label", { class: "check" }, this.cueBox, " Beep my timing (rhythm)"),
+        el("button", { class: "ghost", text: "Clear my timing", onclick: () => this.clearRef() }),
         el("button", { class: "ghost", text: "Reset stats", onclick: () => this.resetStats() }));
-      const left = el("div", { class: "practice-main" }, this.title, this.meta, this.chips, this.status,
-        this.result, this.statLine, this.controls);
+      const left = el("div", { class: "practice-main" }, this.title, this.meta, this.chips, this.lane,
+        el("details", { class: "howto-box", open: true }, el("summary", { text: "How to press it (your keys)" }), this.howto),
+        el("details", { class: "howto-box" }, el("summary", { text: "What do the words mean? (FC, ws, SNK, T! …)" }),
+          el("dl", { class: "gloss" }, T8_GLOSSARY.map(([w, d]) => [el("dt", { text: w }), el("dd", { text: d })]))),
+        this.status, this.result, this.targetLine, this.statLine, this.controls);
       this.root.append(left);
       this.history = new History(this.root);
       this.root.append(el("p", { class: "empty", text: "Pick something from the list." }));
@@ -182,9 +268,11 @@
       if (item.level) meta.push(el("span", { class: "tag lv-" + item.level, text: item.level }));
       if (item.damage) meta.push(el("span", { class: "tag", text: "Damage " + item.damage }));
       if (item.src) meta.push(el("span", { class: "tag src", text: "Source: " + item.src }));
+      const safeUrl = typeof item.url === "string" && /^https:\/\/www\.youtube\.com\/watch\?v=[\w-]{11}&t=\d+$/.test(item.url) ? item.url : null;
       this.meta.replaceChildren(el("div", { class: "tags" }, meta),
         item.when ? el("p", {}, el("b", { text: "When: " }), item.when) : null,
         item.tips ? el("p", {}, el("b", { text: "Tips: " }), item.tips) : null,
+        safeUrl ? el("p", {}, el("a", { href: safeUrl, target: "_blank", rel: "noopener noreferrer", text: "▶ Watch this combo in the video" })) : null,
         el("p", { class: "notation" }, el("b", { text: "Notation: " }), el("code", { text: item.notation })));
       try {
         this.steps = E.parse(item.notation, TIMING);
@@ -192,24 +280,50 @@
         this.steps = null;
         this.status.textContent = "This input can't be practised here yet: " + err.message;
         this.chips.replaceChildren();
+        this.howto.replaceChildren();
         return;
       }
+      this.howto.replaceChildren(...this.steps.map((s) => {
+        const x = explain(s);
+        return el("li", {}, el("kbd", { text: x.keys || "—" }), " ", x.text);
+      }));
       this.cueBox.checked = settings.cue;
+      this.timingBox.checked = settings.timingMode;
+      this.tolInput.value = settings.timingTol;
       this.reset();
     }
+
+    // Target timing: your saved run, else the pro player's timing from the video.
+    target() {
+      const n = this.steps ? this.steps.length : 0;
+      const s = stat(this.item.id);
+      if (s.ref && s.ref.length === n) return { gaps: s.ref, label: "your saved timing" };
+      if (this.item.pro && Array.isArray(this.item.pro.gaps) && this.item.pro.gaps.length === n) {
+        return { gaps: this.item.pro.gaps, label: `${this.item.pro.source}'s timing (from the video)` };
+      }
+      return null;
+    }
+    statId() { return this.item.id + (settings.timingMode && this.target() ? ":timing" : ""); }
 
     reset() {
       stopCues();
       if (!this.steps) return;
-      this.m = new E.Matcher(this.steps, matcherOpts());
+      const t = this.target();
+      const opts = matcherOpts();
+      if (t) opts.moveWindow = Math.max(opts.moveWindow, ...t.gaps.filter((g) => g !== null).map((g) => g + 15));
+      this.m = new E.Matcher(this.steps, opts);
       const now = input.now();
       this.m.hist = this.dirLog.filter((e) => e.f >= now - 30 || e === this.dirLog[this.dirLog.length - 1])
         .map((e) => ({ f: e.f, d: e.d }));
       this.shownState = null;
       this.cued = false;
-      this.status.textContent = "Ready. Start the combo whenever you want.";
+      this.status.textContent = "Ready. Start whenever you want.";
       this.status.className = "status";
+      this.targetLine.textContent = t
+        ? `Target: ${t.label}.` + (settings.timingMode ? ` Timing mode is on (±${settings.timingTol}f).` : " Turn on Timing mode to make it count.")
+        : "No target timing yet: do a run that works in the real game, then Save it as your timing.";
       this.renderChips();
+      this.renderLane();
       this.renderStats();
     }
 
@@ -223,7 +337,8 @@
         else if (i === m.idx && m.state !== "done") cls += " now";
         if (s.link === ":" || s.fast) cls += " jf";
         const mk = s.markers && s.markers.length ? el("span", { class: "mk", text: s.markers.join(" ") }) : null;
-        const chip = el("span", { class: cls, title: chipHelp(s) }, mk, s.label.replace(/^,/, ""));
+        const chip = el("span", { class: cls, title: chipHelp(s) }, mk, s.label.replace(/^,/, ""),
+          el("small", { class: "keys", text: explain(s).keys }));
         const last = groups[groups.length - 1];
         if (last && last.tok === s.tok) last.node.append(chip);
         else groups.push({ tok: s.tok, node: el("span", { class: "tok" }, chip) });
@@ -231,14 +346,48 @@
       this.chips.replaceChildren(...groups.map((g) => g.node));
     }
 
+    // Timeline: target presses on top, yours below, and a moving playhead.
+    renderLane(frameNow) {
+      const t = this.target();
+      if (!t) { this.lane.hidden = true; return; }
+      this.lane.hidden = false;
+      const cumT = [];
+      let acc = 0;
+      t.gaps.forEach((g, i) => { if (g !== null) { acc += g; cumT[i] = acc; } });
+      const res = this.m.results;
+      const f0 = res[0] ? res[0].frame : null;
+      const mine = res.map((r, i) => (this.steps[i].kind === "press" && f0 !== null ? r.frame - f0 : null));
+      const total = Math.max(acc, ...mine.filter((x) => x !== null), 30) + 10;
+      const pos = (f) => (100 * f) / total + "%";
+      const tol = settings.timingTol;
+      const kids = [el("span", { class: "lane-label", text: "target" }), el("span", { class: "lane-label you", text: "you" })];
+      cumT.forEach((f, i) => {
+        if (f === undefined) return;
+        kids.push(el("span", { class: "tick t", style: `left:${pos(f)}`, title: `${this.steps[i].label}: ${f}f` }));
+        kids.push(el("span", { class: "tick-label", style: `left:${pos(f)}`, text: this.steps[i].label.replace(/^,/, "") }));
+      });
+      mine.forEach((f, i) => {
+        if (f === null || f === undefined) return;
+        const d = cumT[i] !== undefined ? f - cumT[i] : null;
+        const cls = d === null ? "" : Math.abs(d) <= tol ? " good" : " bad";
+        kids.push(el("span", { class: "tick y" + cls, style: `left:${pos(f)}`, title: `you: ${f}f` }));
+      });
+      if (frameNow !== undefined && f0 !== null && this.m.state === "running") {
+        kids.push(el("span", { class: "playhead", style: `left:${pos(Math.min(frameNow - f0, total))}` }));
+      }
+      this.lane.replaceChildren(...kids);
+    }
+
     renderStats() {
       if (!this.item) return;
-      const s = stat(this.item.id);
+      const s = stat(this.statId());
       const mastered = s.best >= MASTER_STREAK;
+      const err = s.err ? Object.entries(s.err).filter(([, v]) => v[1]).map(([k, v]) => `${k} ${(v[0] / v[1]).toFixed(1)}f`) : [];
       this.statLine.textContent =
-        `Success ${pct(s)} (${s.s}/${s.a}) · streak ${s.streak} · best streak ${s.best}` +
+        (settings.timingMode && this.target() ? "Timing mode · " : "") +
+        `Success ${pct(s)} (${s.s}/${s.a}) · streak ${s.streak} · best ${s.best}` +
         (mastered ? " · ★ mastered" : ` · ${MASTER_STREAK} in a row to master`) +
-        (s.ref ? " · my timing saved" : "");
+        (err.length ? ` · average timing error: ${err.join(", ")}` : "");
     }
 
     handle(ev) {
@@ -269,6 +418,7 @@
       const before = this.m.idx;
       this.m.tick(frame);
       this.after(before);
+      if (this.m.state === "running") this.renderLane(frame);
       this.history.render(frame);
     }
 
@@ -290,45 +440,70 @@
       }
     }
 
-    gaps() { return this.m.results.map((r) => r.gap); }
-
-    finish(ok) {
+    finish(inputsOk) {
       stopCues();
-      const s = stat(this.item.id);
+      const t = this.target();
+      const mine = pressGaps(this.steps, this.m.results);
+      // Timing check against the target.
+      let timingMsg = null, failAt = this.m.idx;
+      const diffs = mine.map((g, i) => (inputsOk && t && i > 0 && g !== null && t.gaps[i] !== null ? g - t.gaps[i] : null));
+      if (inputsOk && t && settings.timingMode) {
+        const i = diffs.findIndex((d) => d !== null && Math.abs(d) > settings.timingTol);
+        if (i >= 0) {
+          const d = diffs[i];
+          failAt = i;
+          timingMsg = `Inputs right, but timing off at "${this.steps[i].label}": ${Math.abs(d)}f ${d > 0 ? "late" : "early"} ` +
+            `(target ${t.gaps[i]}f, yours ${mine[i]}f, ${gapType(this.steps, i, t.gaps[i])})`;
+        }
+      }
+      const ok = inputsOk && !timingMsg;
+      const s = stat(this.statId());
       s.a++;
       if (ok) { s.s++; s.streak++; s.best = Math.max(s.best, s.streak); sfx.ok(); }
-      else { s.streak = 0; s.drops[this.m.idx] = (s.drops[this.m.idx] | 0) + 1; sfx.fail(); }
-      saveStat(this.item.id, s);
-      this.lastGaps = ok ? this.gaps() : null;
+      else { s.streak = 0; s.drops[failAt] = (s.drops[failAt] | 0) + 1; sfx.fail(); }
+      if (inputsOk && t) {
+        s.err = s.err || {};
+        diffs.forEach((d, i) => {
+          if (d === null) return;
+          const k = gapType(this.steps, i, t.gaps[i]);
+          const e = s.err[k] || [0, 0];
+          s.err[k] = [e[0] + Math.abs(d), e[1] + 1];
+        });
+      }
+      saveStat(this.statId(), s);
+      this.lastGaps = inputsOk ? mine : null;
       this.waitUntil = performance.now() + 350;
 
-      const step = this.steps[this.m.idx];
+      const step = this.steps[failAt];
       this.status.className = "status " + (ok ? "good" : "bad");
       this.status.textContent = ok
         ? (s.streak >= MASTER_STREAK && s.streak === s.best ? `Clean! ${s.streak} in a row. ★` : `Clean! Streak ${s.streak}.`)
-        : `Dropped at "${step ? step.label : "?"}": ${this.m.error.msg}`;
-      this.renderResult(ok, s);
+        : timingMsg || `Dropped at "${step ? step.label : "?"}": ${this.m.error.msg}`;
+      this.renderResult(mine, t, diffs, s);
+      this.renderLane();
       this.renderStats();
       this.onStats();
     }
 
-    renderResult(ok, s) {
-      const ref = s.ref && s.ref.length === this.steps.length ? s.ref : null;
+    renderResult(mine, t, diffs, s) {
+      const tol = settings.timingTol;
       const rows = this.m.results.map((r, i) => {
         const st = this.steps[i];
-        const d = ref && i > 0 ? r.gap - ref[i] : null;
+        const d = diffs[i];
+        const g = mine[i];
         return el("tr", {},
-          el("td", { text: st.label }),
-          el("td", { text: i === 0 ? "start" : r.gap + "f" }),
-          el("td", { text: ref && i > 0 ? ref[i] + "f" : "" }),
-          el("td", { class: d === null ? "" : Math.abs(d) <= 2 ? "good" : "warn",
-                     text: d === null ? "" : (d > 0 ? "+" : "") + d + "f" + (d > 0 ? " late" : d < 0 ? " early" : "") }));
+          el("td", { text: st.label.replace(/^,/, "") }),
+          el("td", { text: i === 0 ? "start" : g === null ? "move" : g + "f" }),
+          el("td", { text: t && i > 0 && t.gaps[i] !== null ? t.gaps[i] + "f" : "" }),
+          el("td", { class: d === null || d === undefined ? "" : Math.abs(d) <= tol ? "good" : "warn",
+                     text: d === null || d === undefined ? "" : (d === 0 ? "perfect" : (d > 0 ? "+" : "") + d + "f" + (d > 0 ? " late" : " early")) }),
+          el("td", { class: "muted", text: i > 0 && g !== null ? gapType(this.steps, i, t && t.gaps[i] !== null ? t.gaps[i] : g) : "" }));
       });
       const worst = Object.entries(s.drops).sort((a, b) => b[1] - a[1])[0];
       this.result.replaceChildren(
         el("table", { class: "gaps" },
-          el("thead", {}, el("tr", {}, el("th", { text: "Step" }), el("th", { text: "Gap" }),
-            el("th", { text: ref ? "My timing" : "" }), el("th", { text: ref ? "Diff" : "" }))),
+          el("thead", {}, el("tr", {}, el("th", { text: "Step" }), el("th", { text: "Your gap" }),
+            el("th", { text: t ? "Target" : "" }), el("th", { text: t ? "Diff" : "" }), el("th", { text: "Type" }))),
           el("tbody", {}, rows)),
         ...[worst && el("p", { class: "hint", text:
           `You drop most at step ${+worst[0] + 1} ("${this.steps[worst[0]]?.label ?? "?"}"): ${worst[1]} times.` })].filter(Boolean));
@@ -339,36 +514,37 @@
       const s = stat(this.item.id);
       s.ref = this.lastGaps;
       saveStat(this.item.id, s);
-      this.status.textContent = "Saved. Only save a timing that worked in the real game.";
-      this.renderStats();
+      this.status.textContent = "Saved as your target timing. Only save a timing that worked in the real game.";
+      this.reset();
     }
 
     clearRef() {
       const s = stat(this.item.id);
       s.ref = null;
       saveStat(this.item.id, s);
-      this.renderStats();
+      this.reset();
     }
 
     resetStats() {
       if (!this.item || !confirm(`Reset stats for "${this.item.name}"?`)) return;
       store.set("stat." + this.item.id, null);
+      store.set("stat." + this.item.id + ":timing", null);
       this.renderStats();
       this.onStats();
     }
 
-    // Beep the saved rhythm, starting from the first input.
+    // Beep the target rhythm, starting from the first press.
     startCue() {
       this.cued = true;
-      if (!settings.cue) return;
-      const s = stat(this.item.id);
-      if (!s.ref || s.ref.length !== this.steps.length) return;
-      let t = 0;
-      for (let i = 1; i < s.ref.length; i++) {
-        t += s.ref[i] * I.FRAME_MS / 1000;
-        const o = tone(880, 0.04, t, 0.05);
+      const t = this.target();
+      if (!settings.cue || !t) return;
+      let acc = 0;
+      t.gaps.forEach((g, i) => {
+        if (g === null || i === 0) return;
+        acc += g;
+        const o = tone(880, 0.04, acc * I.FRAME_MS / 1000, 0.05);
         if (o) cueNodes.push(o);
-      }
+      });
     }
   }
 
@@ -712,7 +888,8 @@
   input.setConfig(settings);
 
   // Combos
-  const LEVELS = ["all", "easy", "medium", "hard", "extreme", "weak"];
+  const ALL_COMBOS = T8_COMBOS.concat(Array.isArray(window.T8_PRO_COMBOS) ? window.T8_PRO_COMBOS : []);
+  const LEVELS = ["all", "easy", "medium", "hard", "extreme", "pro", "weak"];
   let comboFilter = store.get("comboFilter", "all");
   if (!LEVELS.includes(comboFilter)) comboFilter = "all";
   const filterFn = () => (items) => {
@@ -726,7 +903,7 @@
   const comboListEl = $("#combo-list");
   const drillListEl = $("#drill-list");
   const refreshLists = () => {
-    renderList(comboListEl, T8_COMBOS, comboPractice, filterFn());
+    renderList(comboListEl, ALL_COMBOS, comboPractice, filterFn());
     renderList(drillListEl, T8_DRILLS, drillPractice, null);
   };
   const comboPractice = new Practice($("#combo-practice"), () => refreshLists());
@@ -735,7 +912,7 @@
 
   function renderFilters() {
     $("#combo-filters").replaceChildren(...LEVELS.map((lv) =>
-      el("button", { class: lv === comboFilter ? "active" : "", text: lv === "weak" ? "Weak spots" : lv[0].toUpperCase() + lv.slice(1),
+      el("button", { class: lv === comboFilter ? "active" : "", text: lv === "weak" ? "Weak spots" : lv === "pro" ? "Pro (from videos)" : lv[0].toUpperCase() + lv.slice(1),
         onclick: () => { comboFilter = lv; store.set("comboFilter", lv); renderFilters(); refreshLists(); } })));
   }
 
