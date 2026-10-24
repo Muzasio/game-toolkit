@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Tekken 8 Trainer</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="top">
+    <h1>Tekken 8 Trainer <span class="sub">Dragunov · keyboard</span></h1>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="combos" class="active">Combos</button>
+      <button role="tab" data-tab="drills">Drills</button>
+      <button role="tab" data-tab="punish">Punish</button>
+      <button role="tab" data-tab="moves">Moves</button>
+      <button role="tab" data-tab="setup">Keys &amp; setup</button>
+      <button role="tab" data-tab="about">About</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="tab-combos" class="tab active">
+      <div class="split">
+        <aside class="list-pane">
+          <div class="filters" id="combo-filters"></div>
+          <ol class="item-list" id="combo-list"></ol>
+        </aside>
+        <div class="practice" id="combo-practice"></div>
+      </div>
+    </section>
+
+    <section id="tab-drills" class="tab">
+      <div class="split">
+        <aside class="list-pane">
+          <p class="hint">One move or technique at a time. Do each one 10 times in a row to master it.</p>
+          <ol class="item-list" id="drill-list"></ol>
+        </aside>
+        <div class="practice" id="drill-practice"></div>
+      </div>
+    </section>
+
+    <section id="tab-punish" class="tab">
+      <div id="punish"></div>
+    </section>
+
+    <section id="tab-moves" class="tab">
+      <div class="guide" id="guide"></div>
+      <div class="moves-tools">
+        <input type="search" id="move-search" placeholder="Search moves: df+1, Sneak, launch, i10…" maxlength="40" aria-label="Search moves">
+        <select id="move-level" aria-label="Hit level">
+          <option value="">All hit levels</option>
+          <option value="h">Starts high</option>
+          <option value="m">Starts mid</option>
+          <option value="l">Starts low</option>
+          <option value="t">Throws</option>
+        </select>
+        <select id="move-sort" aria-label="Sort">
+          <option value="">Move list order</option>
+          <option value="startup">Fastest first</option>
+          <option value="block">Best on block first</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table class="moves" id="moves-table">
+          <thead><tr><th>Input</th><th>Name</th><th>Level</th><th>Startup</th><th>Block</th><th>Hit</th><th>CH</th><th>Damage</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="tab-setup" class="tab">
+      <div id="setup"></div>
+    </section>
+
+    <section id="tab-about" class="tab">
+      <div class="about">
+        <h2>How it works</h2>
+        <ul>
+          <li>The trainer counts time in <b>frames</b>, like the game (60 per second, 1 frame ≈ 16.7 ms).</li>
+          <li>Each combo is split into steps. You must press the right buttons, with the right direction held, in time.</li>
+          <li>Plain buttons need <b>neutral</b> (no direction held). Holding a direction by mistake turns 2 into d+2 in the real game, so the trainer counts it as a miss.</li>
+          <li><b>1+2</b> means both buttons on the same frame (you can allow up to 3 frames in Keys &amp; setup).</li>
+          <li>Exact windows come from the frame data: the input buffer is 8 frames, fast f,f,F+2 is f,n,f+2 within 8 frames, and the Hail Slicer just frame (FC.df+1:4) is 4 on frames 16–19.</li>
+          <li>Gaps between moves in a combo can't be known exactly without the game, so the trainer only checks you are not too slow. Use <b>Save as my timing</b> after a run that worked in the real game. Then the trainer shows how far each step is from that timing and can beep the rhythm.</li>
+        </ul>
+        <h2>Limits</h2>
+        <ul>
+          <li>No hitboxes, distance, walls or pushback. This trains your hands, not your spacing.</li>
+          <li>Some punishers don't reach after pushback. Check a punish in practice mode before you trust it.</li>
+          <li>Combos change with patches. Confirm a route in the game's practice mode.</li>
+        </ul>
+        <h2>Sources and credit</h2>
+        <ul>
+          <li>Frame data: <a href="https://tekkendocs.com" rel="noopener noreferrer" target="_blank">TekkenDocs</a> (data from its public API, which asks for credit).</li>
+          <li>Combos: <a href="https://wavu.wiki/t/Dragunov_combos" rel="noopener noreferrer" target="_blank">Wavu Wiki</a> (CC0) and the <a href="https://tekkendocs.com/t8/dragunov/guide" rel="noopener noreferrer" target="_blank">TekkenDocs Dragunov guide</a> by Fear Of Silence.</li>
+          <li>Input buffer rules: <a href="https://wavu.wiki/t/Input_buffer" rel="noopener noreferrer" target="_blank">Wavu Wiki</a>.</li>
+          <li>TEKKEN is a trademark of Bandai Namco Entertainment Inc. This is a fan-made practice tool, not linked to Bandai Namco.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/data/moves-dragunov.js"></script>
+  <script src="js/data/punish-targets.js"></script>
+  <script src="js/data/combos.js"></script>
+  <script src="js/data/guide.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
