@@ -259,3 +259,4 @@ input.tol { width: 3.2rem; padding: 0.1rem 0.3rem; }
   .plan li { grid-template-columns: 1fr auto; }
   .plan .why, .plan .bar { grid-column: 1 / -1; }
 }
+.between { align-self: center; font-size: 0.75rem; color: var(--now); white-space: nowrap; }

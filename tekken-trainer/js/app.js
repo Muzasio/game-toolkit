@@ -190,7 +190,7 @@
     } else {
       const b = btnKeys(s.btns);
       const parts = [];
-      if (s.label.includes("FC.")) parts.push(`While crouching`);
+      if (s.label.includes("FC.")) parts.push(`You are already crouching (FC) after the move before, so don't stand up:`);
       if (s.stance) parts.push("From Sneak stance");
       if (s.motion && s.motion.join() === "d,df,f") parts.push(`Roll ${dirKeys("d")} › ${dirKeys("df")} › ${dirKeys("f")}, then`);
       else if (s.motion) parts.push(`Do ${s.motion.map((d) => (d === "n" ? "let go" : dirKeys(d))).join(" › ")}, then`);
@@ -364,7 +364,12 @@
           stepIcons(s), el("small", { class: "keys", text: explain(s).keys }));
         const last = groups[groups.length - 1];
         if (last && last.tok === s.tok) last.node.append(chip);
-        else groups.push({ tok: s.tok, node: el("span", { class: "tok" }, chip) });
+        else {
+          // Show the state the last move leaves you in: crouching (FC) or Sneak.
+          const st = stateBefore(s);
+          if (st && groups.length) groups.push({ tok: -1, node: el("span", { class: "between", title: st.help, text: st.text }) });
+          groups.push({ tok: s.tok, node: el("span", { class: "tok" }, chip) });
+        }
       });
       this.chips.replaceChildren(...groups.map((g) => g.node));
     }
@@ -460,7 +465,8 @@
       if (m.state === this.shownState) return;
       this.shownState = m.state;
       if (m.state === "running") {
-        this.status.textContent = "Go…";
+        const next = this.steps[this.m.idx], st = next && stateBefore(next);
+        this.status.textContent = "Go…" + (st ? ` ${st.help}` : "");
         this.status.className = "status";
       } else if (m.state === "done") {
         this.finish(true);
@@ -657,6 +663,13 @@
           el("span", { class: "pad big1" }, [1, 2, 3, 4].map((x) => el("span", { class: x === b ? "on" : "", text: x }))),
           el("b", { text: String(b) }), el("small", { text: BTN[b] + " · " + keyName("b" + b) })))),
         el("p", { class: "hint", text: "Tekken shows buttons as a 2x2 pad: 1 2 on top (punches), 3 4 below (kicks). 1+2 = both lit." })));
+  }
+
+  // The state a step needs you to be in: the move before puts you there by itself.
+  function stateBefore(s) {
+    if (s.label.includes("FC.")) return { text: "↓ crouching", help: "You are crouching now (FC): the last move left you low. Stay down and do the next input." };
+    if (s.stance) return { text: "→ Sneak", help: "You are in Sneak stance now: just press the button." };
+    return null;
   }
 
   function chipHelp(s) {
