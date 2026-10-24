@@ -92,6 +92,21 @@
 
   // ---------- direction display ----------
   const ARROW = { n: "★", u: "↑", d: "↓", f: "→", b: "←", uf: "↗", ub: "↖", df: "↘", db: "↙" };
+  const DIR_NAMES = { n: "neutral", u: "up", d: "down", f: "forward", b: "back",
+    uf: "up-forward", ub: "up-back", df: "down-forward", db: "down-back" };
+
+  // Tekken-style icons: an arrow per direction and the 2x2 button pad (1 2 on top, 3 4 below).
+  const arrowIcon = (d) => el("span", { class: "arr" + (d === "n" ? " neutral" : ""), title: DIR_NAMES[d] || d, text: ARROW[d] || d });
+  const padIcon = (btns) => el("span", { class: "pad", title: "buttons " + [...btns].sort().join("+") },
+    [1, 2, 3, 4].map((b) => el("span", { class: btns.includes(b) ? "on" : "", text: b })));
+  function stepIcons(s) {
+    if (s.kind === "dirs") return el("span", { class: "icons" }, s.seq.filter((d) => d !== "*").map(arrowIcon));
+    const tag = s.label.includes("FC.") ? "FC" : s.dir === "ws" ? "ws" : s.stance ? "SNK" : null;
+    const arrows = (s.motion || []).slice();
+    if (!["n", "*", "ws"].includes(s.dir) && arrows[arrows.length - 1] !== s.dir) arrows.push(s.dir);
+    return el("span", { class: "icons" }, tag ? el("span", { class: "stance", text: tag }) : null,
+      arrows.map(arrowIcon), arrows.length ? el("span", { class: "plus", text: "+" }) : null, padIcon(s.btns));
+  }
 
   // Tekken-style input history: one row per change, with frames held.
   class History {
@@ -114,8 +129,9 @@
     render(now) {
       if (!this.dirty && !this.rows.length) return;
       if (this.dirty) {
-        this.box.replaceChildren(...this.rows.map(() =>
-          el("li", {}, el("span", { class: "fr" }), el("span", { class: "dir" }), el("span", { class: "btns" }))));
+        this.box.replaceChildren(...this.rows.map((r) =>
+          el("li", {}, el("span", { class: "fr" }), el("span", { class: "dir" }),
+            el("span", { class: "btns" }, r.btns.size ? padIcon([...r.btns]) : null))));
         this.dirty = false;
       }
       this.rows.forEach((r, i) => {
@@ -124,7 +140,6 @@
         const end = i === 0 ? now : this.rows[i - 1].f;
         li.children[0].textContent = String(Math.max(0, end - r.f) || 1).padStart(3, " ");
         li.children[1].textContent = ARROW[r.dir] || r.dir;
-        li.children[2].textContent = [...r.btns].sort().join("+");
       });
     }
   }
@@ -135,7 +150,8 @@
     return { a: s.a | 0, s: s.s | 0, streak: s.streak | 0, best: s.best | 0,
              drops: s.drops && typeof s.drops === "object" ? s.drops : {},
              ref: Array.isArray(s.ref) && s.ref.every((g) => g === null || Number.isFinite(g)) ? s.ref : null,
-             err: s.err && typeof s.err === "object" ? s.err : null };
+             err: s.err && typeof s.err === "object" ? s.err : null,
+             last: typeof s.last === "string" && /^\d{4}-\d\d-\d\d$/.test(s.last) ? s.last : null };
   }
   const saveStat = (id, s) => store.set("stat." + id, s);
   const pct = (s) => (s.a ? Math.round((100 * s.s) / s.a) + "%" : "—");
@@ -230,6 +246,8 @@
       this.chips = el("div", { class: "chips", "aria-live": "polite" });
       this.lane = el("div", { class: "lane", "aria-hidden": "true" });
       this.howto = el("ol", { class: "howto" });
+      this.frames = el("div", { class: "frames" });
+      this.layoutBox = el("div");
       this.status = el("p", { class: "status", "aria-live": "polite" });
       this.result = el("div", { class: "result" });
       this.statLine = el("p", { class: "statline" });
@@ -249,6 +267,8 @@
         el("button", { class: "ghost", text: "Reset stats", onclick: () => this.resetStats() }));
       const left = el("div", { class: "practice-main" }, this.title, this.meta, this.chips, this.lane,
         el("details", { class: "howto-box", open: true }, el("summary", { text: "How to press it (your keys)" }), this.howto),
+        el("details", { class: "howto-box", open: true }, el("summary", { text: "Frame data for each move" }), this.frames),
+        el("details", { class: "howto-box" }, el("summary", { text: "Button layout (arrows, 1 2 3 4, your keys)" }), this.layoutBox),
         el("details", { class: "howto-box" }, el("summary", { text: "What do the words mean? (FC, ws, SNK, T! …)" }),
           el("dl", { class: "gloss" }, T8_GLOSSARY.map(([w, d]) => [el("dt", { text: w }), el("dd", { text: d })]))),
         this.status, this.result, this.targetLine, this.statLine, this.controls);
@@ -269,11 +289,11 @@
       if (item.damage) meta.push(el("span", { class: "tag", text: "Damage " + item.damage }));
       if (item.src) meta.push(el("span", { class: "tag src", text: "Source: " + item.src }));
       const safeUrl = typeof item.url === "string" && /^https:\/\/www\.youtube\.com\/watch\?v=[\w-]{11}&t=\d+$/.test(item.url) ? item.url : null;
-      this.meta.replaceChildren(el("div", { class: "tags" }, meta),
+      this.meta.replaceChildren(...[el("div", { class: "tags" }, meta),
         item.when ? el("p", {}, el("b", { text: "When: " }), item.when) : null,
         item.tips ? el("p", {}, el("b", { text: "Tips: " }), item.tips) : null,
         safeUrl ? el("p", {}, el("a", { href: safeUrl, target: "_blank", rel: "noopener noreferrer", text: "▶ Watch this combo in the video" })) : null,
-        el("p", { class: "notation" }, el("b", { text: "Notation: " }), el("code", { text: item.notation })));
+        el("p", { class: "notation" }, el("b", { text: "Notation: " }), el("code", { text: item.notation }))].filter(Boolean));
       try {
         this.steps = E.parse(item.notation, TIMING);
       } catch (err) {
@@ -281,12 +301,15 @@
         this.status.textContent = "This input can't be practised here yet: " + err.message;
         this.chips.replaceChildren();
         this.howto.replaceChildren();
+        this.frames.replaceChildren();
         return;
       }
       this.howto.replaceChildren(...this.steps.map((s) => {
         const x = explain(s);
-        return el("li", {}, el("kbd", { text: x.keys || "—" }), " ", x.text);
+        return el("li", {}, stepIcons(s), el("kbd", { text: x.keys || "—" }), " ", x.text);
       }));
+      this.frames.replaceChildren(framesTable(item.notation));
+      this.layoutBox.replaceChildren(layoutCard());   // keys may have been rebound
       this.cueBox.checked = settings.cue;
       this.timingBox.checked = settings.timingMode;
       this.tolInput.value = settings.timingTol;
@@ -338,7 +361,7 @@
         if (s.link === ":" || s.fast) cls += " jf";
         const mk = s.markers && s.markers.length ? el("span", { class: "mk", text: s.markers.join(" ") }) : null;
         const chip = el("span", { class: cls, title: chipHelp(s) }, mk, s.label.replace(/^,/, ""),
-          el("small", { class: "keys", text: explain(s).keys }));
+          stepIcons(s), el("small", { class: "keys", text: explain(s).keys }));
         const last = groups[groups.length - 1];
         if (last && last.tok === s.tok) last.node.append(chip);
         else groups.push({ tok: s.tok, node: el("span", { class: "tok" }, chip) });
@@ -403,7 +426,13 @@
 
       if (this.m.state === "done" || this.m.state === "fail") {
         if (performance.now() < this.waitUntil) return;
-        if (ev.type === "press") this.reset(); else return;
+        if (ev.type === "dir" && this.steps[0].kind === "dirs") {
+          // Movement drills start with a direction: restart and feed it as the first input.
+          this.reset();
+          const prev = this.dirLog.length > 1 ? this.dirLog[this.dirLog.length - 2].d : "n";
+          this.m.hist = [{ f: -1e9, d: prev }];
+        } else if (ev.type === "press") this.reset();
+        else return;
         // reset() already copied the direction log, so only feed the press.
       }
       const before = this.m.idx;
@@ -470,14 +499,18 @@
           s.err[k] = [e[0] + Math.abs(d), e[1] + 1];
         });
       }
+      s.last = today();
       saveStat(this.statId(), s);
+      if (ok) countToday(this.item.id);
       this.lastGaps = inputsOk ? mine : null;
       this.waitUntil = performance.now() + 350;
 
       const step = this.steps[failAt];
       this.status.className = "status " + (ok ? "good" : "bad");
       this.status.textContent = ok
-        ? (s.streak >= MASTER_STREAK && s.streak === s.best ? `Clean! ${s.streak} in a row. ★` : `Clean! Streak ${s.streak}.`)
+        ? (s.streak >= MASTER_STREAK && s.streak === s.best ? `Clean! ${s.streak} in a row. ★` : `Clean! Streak ${s.streak}.`) +
+          (this.steps.every((x) => x.kind === "dirs") && this.m.results.length > 1
+            ? ` Took ${this.m.results[this.m.results.length - 1].frame - this.m.results[0].frame}f.` : "")
         : timingMsg || `Dropped at "${step ? step.label : "?"}": ${this.m.error.msg}`;
       this.renderResult(mine, t, diffs, s);
       this.renderLane();
@@ -548,6 +581,84 @@
     }
   }
 
+  // ---------- frame data per move (TekkenDocs) ----------
+  const MOVE_BY_CMD = new Map(T8_MOVES.map((m) => [m.command, m]));
+  const MARKER_TOKS = new Set(["T!", "W!", "CH", "CL", "HE!", "HB!"]);
+  // Combo token -> TekkenDocs command. qcf+N is done from Sneak (SNK.N); d+3+4 / 3+4 is Pigeon Roll.
+  function lookupMove(tok) {
+    let t = tok.replace(/\(fast\)$/, "").replace(/[()]/g, "").replace(/,H\.F$/, "").replace(/~df$/, "").replace(/:/g, ",");
+    t = t.replace(/^qcf\+/, "SNK.").replace(/^d?\+?3\+4,/, "PGR.");
+    if (/^f,f,F\+[34]/.test(t) && !MOVE_BY_CMD.has(t)) t = t.slice(2);   // f,f,F+3 is listed as f,F+3
+    const parts = t.split(",");
+    for (let n = parts.length; n > 0; n--) {
+      const m = MOVE_BY_CMD.get(parts.slice(0, n).join(","));
+      if (m) return { m, partial: n < parts.length };
+    }
+    return null;
+  }
+  const firstNum = (x) => { const m = String(x || "").match(/[+-]?\d+/); return m ? +m[0] : null; };
+  function blockWords(b) {
+    const n = firstNum(b);
+    if (n === null) return "";
+    if (n <= -10) return `punishable (${n})`;
+    if (n < 0) return "safe, their turn";
+    return n === 0 ? "even" : "your turn (plus)";
+  }
+  function hitWords(h) {
+    const v = String(h || "");
+    if (/a/.test(v)) return "launches / airborne";
+    if (/d/.test(v)) return "knocks down";
+    if (/g/.test(v)) return "ground hit";
+    if (/c/.test(v)) return "they crouch";
+    const n = firstNum(v);
+    return n === null ? "" : n > 0 ? "your turn" : "their turn";
+  }
+  const LEVEL_WORDS = { h: "high", m: "mid", l: "low", t: "throw", s: "special mid" };
+  function framesTable(notation) {
+    const rows = [];
+    for (const tok of notation.trim().split(/\s+/)) {
+      if (MARKER_TOKS.has(tok)) continue;
+      let steps;
+      try { steps = E.parse(tok, TIMING); } catch { continue; }
+      if (!steps.some((s) => s.kind === "press")) continue;   // dash, cc, sidestep
+      const f = lookupMove(tok);
+      const flat = (x) => String(x || "").replace(/\s+/g, " ").trim();
+      if (!f) { rows.push(el("tr", {}, el("td", {}, el("code", { text: tok })), el("td", { colspan: 6, class: "muted", text: "not in the frame data" }))); continue; }
+      const m = f.m, lv = m.hitLevel.split(",").map((x) => LEVEL_WORDS[x.trim()[0]] || x.trim()).filter(Boolean).join(", ");
+      rows.push(el("tr", {},
+        el("td", {}, el("code", { text: tok }), m.command !== tok ? el("small", { class: "muted", text: " = " + m.command + (f.partial ? " (start)" : "") }) : null),
+        el("td", { text: m.name || "" }),
+        el("td", { text: lv }),
+        el("td", { text: flat(m.startup) }),
+        el("td", {}, flat(m.block), el("small", { class: "muted", text: " " + blockWords(m.block) })),
+        el("td", {}, flat(m.hit), el("small", { class: "muted", text: " " + hitWords(m.hit) })),
+        el("td", { text: flat(m.damage) })));
+    }
+    if (!rows.length) return el("p", { class: "hint", text: "No attacks here." });
+    return el("div", {},
+      el("div", { class: "table-wrap" }, el("table", { class: "gaps ftable" },
+        el("thead", {}, el("tr", {}, ["Move", "Name", "Hits", "Startup", "On block", "On hit", "Damage"].map((h) => el("th", { text: h })))),
+        el("tbody", {}, rows))),
+      el("p", { class: "hint", text: "Startup i15 = hits on frame 15 (lower is faster). On block -10 or worse = the opponent can punish. " +
+        "+ = you are ahead. Letters after the hit number: a = airborne (launch), d = knockdown, g = ground, c = they crouch. Frame data: TekkenDocs." }));
+  }
+
+  // ---------- button layout (arrows + 2x2 pad with your keys) ----------
+  function layoutCard() {
+    const grid = [["ub", "u", "uf"], ["b", "n", "f"], ["db", "d", "df"]];
+    const BTN = { 1: "Left punch", 2: "Right punch", 3: "Left kick", 4: "Right kick" };
+    return el("div", { class: "layout" },
+      el("div", {},
+        el("div", { class: "dirgrid" }, grid.flat().map((d) => el("div", { class: "cell" + (d === "n" ? " neutral" : "") },
+          el("span", { class: "big", text: ARROW[d] }), el("b", { text: d }), el("small", { text: d === "n" ? "no keys" : dirKeys(d) })))),
+        el("p", { class: "hint", text: "f = towards the opponent. Lower-case = tap, capital (F) = hold. On the right side forward is the other key (Keys & setup › Side)." })),
+      el("div", {},
+        el("div", { class: "btngrid" }, [1, 2, 3, 4].map((b) => el("div", { class: "cell" },
+          el("span", { class: "pad big1" }, [1, 2, 3, 4].map((x) => el("span", { class: x === b ? "on" : "", text: x }))),
+          el("b", { text: String(b) }), el("small", { text: BTN[b] + " · " + keyName("b" + b) })))),
+        el("p", { class: "hint", text: "Tekken shows buttons as a 2x2 pad: 1 2 on top (punches), 3 4 below (kicks). 1+2 = both lit." })));
+  }
+
   function chipHelp(s) {
     const parts = [];
     if (s.kind === "dirs") parts.push("Direction only: " + s.seq.join(", ").replace(/\*/g, " (any)"));
@@ -575,6 +686,7 @@
       const li = el("li", { class: practice.item && practice.item.id === it.id ? "sel" : "" },
         el("button", { onclick: () => { practice.load(it); renderList(listEl, items, practice, filter); } },
           it.level ? el("span", { class: "tag lv-" + it.level, text: it.level[0].toUpperCase() }) : null,
+          it.group === "Movement" ? el("span", { class: "tag lv-move", title: "Movement", text: "Mv" }) : null,
           el("span", { class: "nm", text: it.name }),
           el("span", { class: "pc", text: (s.best >= MASTER_STREAK ? "★ " : "") + pct(s) })));
       return li;
@@ -840,7 +952,8 @@
           el("p", { class: "hint", text: "Use the same keys as in Tekken 8 so the muscle memory carries over." }),
           el("table", { class: "keys" }, el("tbody", {}, keyRows)),
           el("button", { class: "ghost", text: "Default keys (WASD + UIJK)", onclick: () => {
-            settings.keys = Object.assign({}, I.DEFAULT_KEYS); saveSettings(); renderSetup(); } })),
+            settings.keys = Object.assign({}, I.DEFAULT_KEYS); saveSettings(); renderSetup(); } }),
+          el("h2", { text: "Button layout" }), layoutCard()),
         el("div", {},
           el("h2", { text: "Rules" }),
           sel("side", [["p1", "Left side (right key = forward)"], ["p2", "Right side (left key = forward)"]], "Side:"),
@@ -869,12 +982,80 @@
 
   // ---------- tabs & wiring ----------
   let tab = "combos";
+  // ---------- today's plan: short daily practice from your stats ----------
+  const today = () => new Date().toLocaleDateString("en-CA");          // YYYY-MM-DD, local time
+  const PLAN_TARGET = 5;                                                 // clean runs per item
+  const LEVEL_ORDER = ["easy", "medium", "hard", "extreme", "pro"];
+  function dayData() {
+    const d = store.get("day", null);
+    if (d && d.date === today() && Array.isArray(d.plan) && d.done && typeof d.done === "object") return d;
+    return { date: today(), plan: null, done: {} };
+  }
+  function countToday(id) {
+    const d = dayData();
+    d.done[id] = (d.done[id] | 0) + 1;
+    store.set("day", d);
+  }
+  function buildPlan() {
+    const dayNo = Math.floor(Date.now() / 864e5);
+    const pick = (list, n) => list.slice(0, n);
+    const all = ALL_COMBOS.concat(T8_DRILLS);
+    const moveDrills = T8_DRILLS.filter((x) => x.group === "Movement");
+    const techDrills = T8_DRILLS.filter((x) => x.group !== "Movement");
+    const plan = [];
+    const add = (it, why) => { if (it && !plan.some((p) => p.id === it.id)) plan.push({ id: it.id, why }); };
+    // 1. Warm-up: one movement drill and one technique drill, a different pair each day.
+    add(moveDrills[dayNo % moveDrills.length], "Warm-up: movement");
+    add(techDrills[dayNo % techDrills.length], "Warm-up: technique");
+    // 2. Weak spots: tried 3+ times, not mastered, lowest success first.
+    const weak = all.map((it) => [it, stat(it.id)]).filter(([, s]) => s.a >= 3 && s.best < MASTER_STREAK)
+      .sort((a, b) => a[1].s / a[1].a - b[1].s / b[1].a);
+    pick(weak, 3).forEach(([it]) => add(it, "Weak spot"));
+    // 3. Review: a mastered item you haven't done for the longest time.
+    const old = all.map((it) => [it, stat(it.id)]).filter(([, s]) => s.best >= MASTER_STREAK)
+      .sort((a, b) => String(a[1].last).localeCompare(String(b[1].last)));
+    if (old.length) add(old[0][0], "Review (keep it fresh)");
+    // 4. New: the easiest combos you have never tried, until there are 7 items.
+    const fresh = ALL_COMBOS.filter((c) => stat(c.id).a === 0)
+      .sort((a, b) => LEVEL_ORDER.indexOf(a.level) - LEVEL_ORDER.indexOf(b.level));
+    for (const c of fresh) { if (plan.length >= 7) break; add(c, "New combo"); }
+    return plan;
+  }
+  function renderToday() {
+    const d = dayData();
+    if (!d.plan) { d.plan = buildPlan(); store.set("day", d); }
+    const byId = new Map(ALL_COMBOS.concat(T8_DRILLS).map((it) => [it.id, it]));
+    const rows = d.plan.filter((p) => byId.has(p.id));
+    const done = rows.filter((p) => (d.done[p.id] | 0) >= PLAN_TARGET).length;
+    $("#today").replaceChildren(
+      el("h2", { text: "Today's practice" }),
+      el("p", { class: "hint", text: `About 10 minutes. Do ${PLAN_TARGET} clean runs of each, then stop. ` +
+        "Short practice every day builds muscle memory faster than one long session. The plan uses your stats: weak spots first, old combos to review, then new ones." }),
+      el("p", { class: "statline", text: `${done} of ${rows.length} done` + (done === rows.length && rows.length ? " · ★ all done for today" : "") }),
+      el("ol", { class: "plan" }, rows.map((p) => {
+        const it = byId.get(p.id), n = Math.min(d.done[p.id] | 0, PLAN_TARGET), isDrill = T8_DRILLS.includes(it);
+        return el("li", { class: n >= PLAN_TARGET ? "done" : "" },
+          el("span", { class: "why", text: p.why }),
+          el("span", { class: "nm", text: it.name }),
+          el("span", { class: "bar" }, el("span", { style: `width:${(100 * n) / PLAN_TARGET}%` })),
+          el("span", { class: "pc", text: `${n}/${PLAN_TARGET}` }),
+          el("button", { class: "small", text: n >= PLAN_TARGET ? "Again" : "Practice", onclick: () => {
+            showTab(isDrill ? "drills" : "combos");
+            (isDrill ? drillPractice : comboPractice).load(it);
+            refreshLists();
+          } }));
+      })),
+      el("button", { class: "ghost", text: "Make a new plan", onclick: () => {
+        const x = dayData(); x.plan = buildPlan(); store.set("day", x); renderToday(); } }));
+  }
+
   function showTab(name) {
     tab = name;
     document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
     document.querySelectorAll(".tab").forEach((s) => s.classList.toggle("active", s.id === "tab-" + name));
     store.set("tab", name);
     if (name === "setup") renderSetup();
+    if (name === "today") renderToday();
   }
 
   const input = new I.KeyInput((ev) => {
@@ -927,7 +1108,7 @@
   renderMoves();
   input.attach();
   const savedTab = store.get("tab", "combos");
-  showTab(["combos", "drills", "punish", "moves", "setup", "about"].includes(savedTab) ? savedTab : "combos");
+  showTab(["today", "combos", "drills", "punish", "moves", "setup", "about"].includes(savedTab) ? savedTab : "combos");
 
   (function loop() {
     const f = input.now();

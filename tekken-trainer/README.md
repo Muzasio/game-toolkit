@@ -5,11 +5,15 @@ It checks every press frame by frame (60 per second), like the game, and tells y
 
 - **Combos:** 25 Dragunov combos from Easy to Extreme (Wavu Wiki and the TekkenDocs guide), each with when to use it and tips.
 - **Drills:** one technique at a time: fast f,f,F+2 (within 8 frames), just-frame Hail Slicer (FC.df+1:4, frames 16–19), qcf moves, ws moves, crouch cancel, dashes.
+- **Movement drills:** dash, backdash, Korean backdash (b,b then db,b cycles), sidesteps, sidestep → backdash, dash → block, dash → df+1, backdash → whiff punish, Sneak in → crouch cancel.
+- **Today tab:** a 10-minute daily plan from your stats (warm-up, weak spots, review, new combos), 5 clean runs each, with progress.
 - **Punish trainer:** a random blocked move from any of 41 characters. Punish it with the right Dragunov move, or keep blocking if it's safe.
 - **Moves:** all 141 Dragunov moves with frame data, a short game plan, and a **Drill** button on each move.
 - **Feedback:** "wrong button", "held DF, wanted N", "1+2 were 2 frames apart", "just frame too early: 12f", a Tekken-style input display, success rate, streaks and weak spots.
-- **Pro timing:** 9 combos copied from Nydem's Season 3 guide video, with the **exact keys and frame gaps** he pressed (read from Tekken 8's input history in the video). Timing mode grades every gap: perfect / early / late, and labels it movement, string or juggle.
+- **Pro timing:** 9 combos copied from Nydem's Season 3 guide video, with the **exact keys and frame gaps** the player pressed (read from Tekken 8's input history in the video). Timing mode grades every gap: perfect / early / late, and labels it movement, string or juggle.
 - **Beginner help:** every step shows your real keys (e.g. `FC.df+1` → `S+D + U`), a "How to press it" list in plain words, and a glossary (FC, ws, SNK, T!, cc…).
+- **Tekken-style icons:** every step and the input display show arrows (↘ = df) and the 2x2 button pad (1 2 / 3 4), like the game. A **Button layout** card (combo page and Keys & setup) maps each direction and button to your keys.
+- **Frame data per move:** each combo lists its moves with startup, on block, on hit and damage, plus plain words ("punishable", "launches").
 - **My timing:** save a run that worked in the real game as your own target, with an optional rhythm beep.
 
 ## Run

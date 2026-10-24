@@ -130,3 +130,19 @@ test("full beginner combo", () => {
   const m = run("df+2 4,1 4,4 FC.df+1,4 SNK.2 T! b+4,3", ev);
   assert.strictEqual(m.state, "done", m.error && m.error.msg);
 });
+
+test("Korean backdash: b,b then db,b cycles (with or without neutral)", () => {
+  const m = run("b,b db,b db,b", [[0, "d", "b"], [3, "d", "n"], [6, "d", "b"], [10, "d", "db"], [13, "d", "b"],
+    [17, "d", "db"], [20, "d", "n"], [22, "d", "b"]]);
+  assert.strictEqual(m.state, "done", m.error && m.error.msg);
+});
+
+test("sidestep then backdash", () => {
+  const m = run("ssl b,b", [[0, "d", "u"], [3, "d", "n"], [10, "d", "b"], [13, "d", "n"], [16, "d", "b"]]);
+  assert.strictEqual(m.state, "done", m.error && m.error.msg);
+});
+
+test("dash then block", () => {
+  const m = run("dash b", [[0, "d", "f"], [3, "d", "n"], [6, "d", "f"], [15, "d", "n"], [18, "d", "b"]]);
+  assert.strictEqual(m.state, "done", m.error && m.error.msg);
+});

@@ -214,3 +214,48 @@ input.tol { width: 3.2rem; padding: 0.1rem 0.3rem; }
 .tick.y.bad { background: var(--bad); }
 .tick-label { position: absolute; top: 30px; font-size: 0.6rem; color: var(--muted); transform: translateX(-50%); white-space: nowrap; }
 .playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--accent); }
+
+/* Tekken-style icons: arrows and the 2x2 button pad */
+.icons { display: inline-flex; align-items: center; gap: 2px; vertical-align: middle; }
+.chip .icons { display: flex; justify-content: center; margin-top: 0.15rem; }
+.howto .icons { margin-right: 0.4rem; min-width: 3.2rem; }
+.arr { font-family: var(--mono); font-weight: 700; color: var(--accent); font-size: 1rem; line-height: 1; }
+.arr.neutral { color: var(--muted); font-size: 0.8rem; }
+.icons .plus { color: var(--muted); font-size: 0.8rem; }
+.icons .stance { font-size: 0.65rem; font-weight: 700; padding: 0 0.2rem; border-radius: 3px; background: var(--line); color: var(--text); }
+.pad { display: inline-grid; grid-template-columns: 1fr 1fr; gap: 1px; vertical-align: middle; }
+.pad > span { width: 0.85rem; height: 0.85rem; border-radius: 50%; font-size: 0.55rem; line-height: 0.85rem; text-align: center;
+  border: 1px solid var(--line); color: transparent; font-family: var(--mono); }
+.pad > span.on { background: var(--warn); border-color: var(--warn); color: #111; font-weight: 700; }
+.pad.big1 > span { width: 1.4rem; height: 1.4rem; line-height: 1.4rem; font-size: 0.8rem; color: var(--muted); }
+.pad.big1 > span.on { color: #111; }
+.history .btns { display: flex; align-items: center; }
+.history li { align-items: center; min-height: 1.9rem; }
+
+.layout { display: flex; flex-wrap: wrap; gap: 1.5rem; margin: 0.5rem 0; }
+.layout > div { max-width: 22rem; }
+.dirgrid, .btngrid { display: grid; grid-template-columns: repeat(3, 5.2rem); gap: 4px; }
+.btngrid { grid-template-columns: repeat(2, 7.5rem); }
+.layout .cell { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 0.3rem;
+  display: flex; flex-direction: column; align-items: center; gap: 0.1rem; text-align: center; }
+.layout .cell .big { font-size: 1.5rem; color: var(--accent); line-height: 1.1; }
+.layout .cell.neutral .big { color: var(--muted); }
+.layout .cell small { color: var(--muted); font-size: 0.75rem; }
+.ftable td small { font-size: 0.75rem; }
+.ftable td, .ftable th { vertical-align: top; }
+
+/* movement drills + today's plan */
+.lv-move { color: var(--warn); border-color: var(--warn); }
+.today { max-width: 52rem; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 1rem 1.25rem; }
+.plan { list-style: none; margin: 0.5rem 0 1rem; padding: 0; display: grid; gap: 0.35rem; }
+.plan li { display: grid; grid-template-columns: 11rem 1fr 6rem 2.5rem auto; gap: 0.6rem; align-items: center;
+  background: var(--panel-2); border-radius: 8px; padding: 0.4rem 0.6rem; }
+.plan .why { color: var(--muted); font-size: 0.85rem; }
+.plan .pc { font-variant-numeric: tabular-nums; color: var(--muted); }
+.plan .bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.plan .bar > span { display: block; height: 100%; background: var(--good); }
+.plan li.done .nm { color: var(--good); }
+@media (max-width: 700px) {
+  .plan li { grid-template-columns: 1fr auto; }
+  .plan .why, .plan .bar { grid-column: 1 / -1; }
+}

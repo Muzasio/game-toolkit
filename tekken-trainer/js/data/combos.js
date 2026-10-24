@@ -191,8 +191,23 @@ window.T8_DRILLS = [
     tips: "b+1+2 is +13 on hit. The d+1+3 throw is guaranteed." },
   { id: "d-cc", name: "Crouch cancel", notation: "f+3~df cc 1",
     tips: "Enter Sneak with df, tap W and let go (cc), then jab." },
-  { id: "d-dash", name: "Dash", notation: "dash", tips: "Tap D twice quickly." },
-  { id: "d-backdash", name: "Backdash", notation: "b,b", tips: "Tap A twice quickly." },
+  // Movement (keys for the left side: D = forward, A = back, W = up, S = down).
+  { id: "d-dash", group: "Movement", name: "Dash", notation: "dash", tips: "Tap D twice quickly. Let go fully between the taps." },
+  { id: "d-backdash", group: "Movement", name: "Backdash", notation: "b,b", tips: "Tap A twice quickly. Your main way to step out of range." },
+  { id: "d-kbd", group: "Movement", name: "Korean backdash (KBD)", notation: "b,b db,b db,b db,b",
+    tips: "Backdash, then keep A held and tap S (db), let go of S (b). Each db,b cancels the backdash into a new one, so you move back further and faster. Let go of S first." },
+  { id: "d-ss-both", group: "Movement", name: "Sidestep left and right", notation: "ssl ssr ssl ssr",
+    tips: "Tap W (step left, into the background), then tap S (step right). One short tap each. Dragunov is weak to the opponent's step right." },
+  { id: "d-ss-bd", group: "Movement", name: "Sidestep, then backdash", notation: "ssl b,b",
+    tips: "Step to dodge a straight attack, then backdash out. A safe way to reset the fight." },
+  { id: "d-dash-block", group: "Movement", name: "Dash, then block", notation: "dash b",
+    tips: "Dash in, then hold A to stop and block. Moves you closer without getting hit for free." },
+  { id: "d-dash-df1", group: "Movement", name: "Dash into df+1", notation: "dash df+1",
+    tips: "Dash in, then df+1 (i13 mid poke, -2 on block). Let go of D before you press S+D." },
+  { id: "d-bd-df2", group: "Movement", name: "Backdash, then whiff punish df+2", notation: "b,b df+2",
+    tips: "Backdash so their attack misses, then launch with df+2 (S+D + I)." },
+  { id: "d-snk-cc", group: "Movement", name: "Sneak in, stand up (cc)", notation: "d,df,f cc",
+    tips: "Roll S › S+D › D to enter Sneak, then tap W and let go to stand. Fakes a Sneak attack." },
 ];
 
 // Dragunov punishers (TekkenDocs guide), fastest first.
